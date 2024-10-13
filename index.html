@@ -1,0 +1,57 @@
+<html>
+
+<head>
+    <script src="adler32.js"></script>
+</head>
+
+<body>
+    <h1>WM4 Setting.lua editor</h1>
+
+    <textarea id="output"></textarea>
+    <input type="file" id="input" />
+    <button id="save">Save</button>
+
+    <script>
+        const input = document.getElementById("input")
+        const output = document.getElementById("output")
+        const save = document.getElementById("save")
+
+        input.addEventListener("change", () => {
+            const reader = new FileReader()
+            reader.onload = () => {
+                const data = new Uint8Array(reader.result)
+                const dataView = new DataView(data.buffer)
+                if (data.length < 8 || dataView.getUint32(0, true) != 100)
+                    return alert("Invalid header")
+                if (dataView.getInt32(4, true) != ADLER32.buf(data.slice(8), 0x64))
+                    return alert("Invalid checksum")
+                output.value = new TextDecoder().decode(data.slice(8))
+            }
+
+            reader.onerror = (err) => {
+                alert(err.toString())
+            }
+
+            reader.readAsArrayBuffer(input.files[0])
+        })
+
+        save.addEventListener("click", () => {
+            const data = new Uint8Array(8 + output.value.length)
+            const dataView = new DataView(data.buffer)
+
+            dataView.setUint32(0, 100, true)
+            dataView.setInt32(4, ADLER32.str(output.value, 0x64), true)
+            for (let i = 0; i < output.value.length; i++)
+                data[8 + i] = output.value.charCodeAt(i)
+
+            const link = document.createElement("a")
+            const file = new Blob([data])
+            link.href = URL.createObjectURL(file)
+            link.download = "Setting.lua";
+            link.click()
+            URL.revokeObjectURL(link.href)
+        })
+    </script>
+</body>
+
+</html>
